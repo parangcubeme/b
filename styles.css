@@ -90,3 +90,8 @@ td.cell[data-editor]::before{
 @media(max-width:600px){
   .editor-buttons{grid-template-columns:1fr}
 }
+
+body.force-landscape .app-header{display:none}
+body.force-landscape .toolbar{position:sticky;top:0}
+body.force-landscape .table-wrap{max-height:calc(100vh - 58px)}
+body.force-landscape th,body.force-landscape td{font-size:11px;padding:5px 6px;min-width:82px}
