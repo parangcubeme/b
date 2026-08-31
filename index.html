@@ -15,6 +15,7 @@
       <p>엑셀처럼 보고 · 수정하고 · 행/열 추가</p>
     </div>
     <div class="header-actions">
+      <button id="userBtn" class="btn user-btn">사용자 선택</button>
       <button id="backBtn" class="btn secondary">← 이전</button>
       <button id="saveBtn" class="btn save-btn">저장</button>
       <label class="btn secondary">엑셀 업로드 · 덮어쓰기<input id="fileInput" type="file" accept=".xlsx,.xls" hidden></label>
@@ -41,6 +42,18 @@
       </div>
     </section>
   </main>
+
+  <div id="editorModal" class="editor-modal" aria-hidden="true">
+    <div class="editor-card">
+      <h2>이름을 선택하세요</h2>
+      <p>수정한 셀에 선택한 이름이 표시됩니다.</p>
+      <div class="editor-buttons">
+        <button class="editor-choice" data-name="민혜인">민혜인</button>
+        <button class="editor-choice" data-name="최태연">최태연</button>
+        <button class="editor-choice" data-name="박성원">박성원</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" role="status"></div>
   <script src="./app.js"></script>
