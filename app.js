@@ -4,6 +4,9 @@ let book = {};
 let activeSheet = "";
 let selectedRow = null;
 let selectedCol = null;
+let dragStart = null;
+let dragEnd = null;
+let isDragging = false;
 let currentFileName = "서로문화축제_Que_Sheet.xlsx";
 
 const $ = (id) => document.getElementById(id);
@@ -82,6 +85,13 @@ function renderTabs(){
   });
 }
 
+function isCellSelected(r,c){
+  if(!dragStart || !dragEnd) return false;
+  const r1=Math.min(dragStart.r,dragEnd.r), r2=Math.max(dragStart.r,dragEnd.r);
+  const c1=Math.min(dragStart.c,dragEnd.c), c2=Math.max(dragStart.c,dragEnd.c);
+  return r>=r1 && r<=r2 && c>=c1 && c<=c2;
+}
+
 function render(){
   if(!book[activeSheet]) return;
   renderTabs();
@@ -128,6 +138,18 @@ function render(){
       td.dataset.r=r;
       td.dataset.c=c;
       td.textContent=displayValue(row[c], c);
+      if(isCellSelected(r,c)) td.classList.add("range-selected");
+      td.addEventListener("mousedown",(e)=>{
+        if(e.button!==0) return;
+        isDragging=true;
+        dragStart={r,c}; dragEnd={r,c};
+        render();
+      });
+      td.addEventListener("mouseenter",()=>{
+        if(!isDragging) return;
+        dragEnd={r,c};
+        render();
+      });
       td.addEventListener("focus",()=>{ selectedRow=r; });
       td.addEventListener("blur",()=>{
         book[activeSheet][r][c]=td.innerText.replace(/\r/g,"");
@@ -222,6 +244,9 @@ function exportExcel(){
   XLSX.writeFile(wb, safeName + "_현재파일.xlsx");
   showToast("현재 화면의 파일을 다운로드했습니다.");
 }
+
+document.addEventListener("mouseup",()=>{ isDragging=false; });
+document.addEventListener("touchend",()=>{ isDragging=false; });
 
 async function boot(){
   const res=await fetch("./data.json",{cache:"no-store"});
