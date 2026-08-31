@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>서로문화축제 관리자</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#111827;font-family:Arial,"Noto Sans KR",sans-serif}
+    header{background:#111827;color:#fff;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    header h1{font-size:20px;margin:0}header a{color:#fff;text-decoration:none;background:#374151;padding:8px 11px;border-radius:8px}
+    main{max-width:900px;margin:0 auto;padding:16px}.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:16px}
+    h2,h3{margin-top:0}.login{max-width:420px;margin:40px auto}.input{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:9px;margin-bottom:10px}
+    button{font:inherit;cursor:pointer}.primary{width:100%;border:0;border-radius:9px;padding:12px;background:#6d28d9;color:white;font-weight:800}
+    .msg{min-height:22px;padding-top:8px;color:#b91c1c;font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .list{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #e5e7eb}.row:last-child{border-bottom:0}
+    .sub{font-size:12px;color:#6b7280;margin-top:3px}.count{font-weight:800;color:#4f46e5}.mini{border:0;border-radius:7px;padding:7px 9px;background:#111827;color:#fff;font-size:12px}
+    .empty{padding:18px;text-align:center;color:#6b7280}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<header><h1>서로문화축제 관리자</h1><a href="/">큐시트로 돌아가기</a></header>
+<main>
+  <section id="loginView" class="card login">
+    <h2>관리자 로그인</h2>
+    <input id="adminId" class="input" placeholder="아이디" autocomplete="username">
+    <input id="adminPw" class="input" type="password" placeholder="패스워드" autocomplete="current-password">
+    <button id="loginBtn" class="primary">로그인</button>
+    <div id="msg" class="msg"></div>
+  </section>
+
+  <section id="dashboard" hidden>
+    <div class="grid">
+      <div class="card"><h3>접속자 통계</h3><div id="stats" class="list"></div></div>
+      <div class="card"><h3>백업 파일</h3><div id="backups" class="list"></div></div>
+    </div>
+  </section>
+</main>
+<script src="./admin.js"></script>
+</body>
+</html>
