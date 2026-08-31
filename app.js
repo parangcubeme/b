@@ -1,4 +1,6 @@
 const STORAGE_KEY = "soro-culture-cuesheet-v1";
+const EDIT_META_KEY = STORAGE_KEY + "-editors";
+const USER_KEY = STORAGE_KEY + "-current-user";
 let originalBook = {};
 let book = {};
 let activeSheet = "";
@@ -8,6 +10,8 @@ let dragStart = null;
 let dragEnd = null;
 let isDragging = false;
 let currentFileName = "서로문화축제_Que_Sheet.xlsx";
+let currentEditor = "";
+let editMeta = {};
 
 const $ = (id) => document.getElementById(id);
 const table = $("sheetTable");
@@ -54,7 +58,65 @@ function normalizeRows(rows){
   });
 }
 
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(book)); }
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(book));
+  localStorage.setItem(EDIT_META_KEY, JSON.stringify(editMeta));
+}
+
+function loadEditMeta(){
+  try{ return JSON.parse(localStorage.getItem(EDIT_META_KEY)) || {}; }
+  catch(e){ return {}; }
+}
+
+function metaKey(sheet,r,c){ return `${sheet}|${r}|${c}`; }
+
+function setEditorForCell(sheet,r,c,name){
+  if(name) editMeta[metaKey(sheet,r,c)] = name;
+}
+
+function getEditorForCell(sheet,r,c){
+  return editMeta[metaKey(sheet,r,c)] || "";
+}
+
+function shiftRowMeta(sheet,start,delta,dropRow=null){
+  const next={};
+  Object.entries(editMeta).forEach(([k,v])=>{
+    const [sh,rs,cs]=k.split("|");
+    let r=Number(rs), c=Number(cs);
+    if(sh!==sheet){ next[k]=v; return; }
+    if(dropRow!==null && r===dropRow) return;
+    if(r>=start) r+=delta;
+    next[metaKey(sh,r,c)]=v;
+  });
+  editMeta=next;
+}
+
+function shiftColMeta(sheet,start,delta,dropCol=null){
+  const next={};
+  Object.entries(editMeta).forEach(([k,v])=>{
+    const [sh,rs,cs]=k.split("|");
+    let r=Number(rs), c=Number(cs);
+    if(sh!==sheet){ next[k]=v; return; }
+    if(dropCol!==null && c===dropCol) return;
+    if(c>=start) c+=delta;
+    next[metaKey(sh,r,c)]=v;
+  });
+  editMeta=next;
+}
+
+function chooseEditor(name){
+  currentEditor=name;
+  localStorage.setItem(USER_KEY,name);
+  $("userBtn").textContent="👤 " + name;
+  $("editorModal").classList.remove("show");
+  $("editorModal").setAttribute("aria-hidden","true");
+  showToast(name + "님으로 작업합니다.");
+}
+
+function openEditorModal(){
+  $("editorModal").classList.add("show");
+  $("editorModal").setAttribute("aria-hidden","false");
+}
 
 function loadSaved(){
   try{
@@ -138,6 +200,11 @@ function render(){
       td.dataset.r=r;
       td.dataset.c=c;
       td.textContent=displayValue(row[c], c);
+      const editorName=getEditorForCell(activeSheet,r,c);
+      if(editorName){
+        td.dataset.editor=editorName;
+        td.title="수정: " + editorName;
+      }
       if(isCellSelected(r,c)) td.classList.add("range-selected");
       td.addEventListener("mousedown",(e)=>{
         if(e.button!==0) return;
@@ -150,9 +217,19 @@ function render(){
         dragEnd={r,c};
         render();
       });
-      td.addEventListener("focus",()=>{ selectedRow=r; });
+      td.addEventListener("focus",()=>{
+        selectedRow=r;
+        td.dataset.before=td.innerText.replace(/\r/g,"");
+      });
       td.addEventListener("blur",()=>{
-        book[activeSheet][r][c]=td.innerText.replace(/\r/g,"");
+        const newValue=td.innerText.replace(/\r/g,"");
+        const before=td.dataset.before ?? String(displayValue(book[activeSheet][r][c],c) ?? "");
+        book[activeSheet][r][c]=newValue;
+        if(newValue!==before && currentEditor){
+          setEditorForCell(activeSheet,r,c,currentEditor);
+          td.dataset.editor=currentEditor;
+          td.title="수정: " + currentEditor;
+        }
         save();
       });
       td.addEventListener("keydown",(e)=>{
@@ -175,6 +252,7 @@ function addRow(){
   const rows=book[activeSheet];
   const width=Math.max(1,...rows.map(r=>r.length));
   const at=selectedRow===null?rows.length:selectedRow+1;
+  shiftRowMeta(activeSheet,at,1);
   rows.splice(at,0,Array(width).fill(""));
   selectedRow=at;
   save(); render(); showToast("행을 추가했습니다.");
@@ -190,7 +268,9 @@ function deleteCol(){
   const rows=book[activeSheet];
   const width=Math.max(1,...rows.map(r=>r.length));
   if(width<=1){ showToast("마지막 열은 삭제할 수 없습니다."); return; }
+  const deletingCol=selectedCol;
   rows.forEach(r=>r.splice(selectedCol,1));
+  shiftColMeta(activeSheet,deletingCol+1,-1,deletingCol);
   selectedCol=null;
   save(); render(); showToast("열을 삭제했습니다.");
 }
@@ -198,7 +278,9 @@ function deleteCol(){
 function deleteRow(){
   if(selectedRow===null){ showToast("왼쪽 행 번호를 먼저 선택하세요."); return; }
   if(book[activeSheet].length<=1) return;
+  const deletingRow=selectedRow;
   book[activeSheet].splice(selectedRow,1);
+  shiftRowMeta(activeSheet,deletingRow+1,-1,deletingRow);
   selectedRow=null;
   save(); render(); showToast("행을 삭제했습니다.");
 }
@@ -209,6 +291,8 @@ function resetBook(){
   activeSheet=Object.keys(book)[0];
   selectedRow=null;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(EDIT_META_KEY);
+  editMeta={};
   localStorage.removeItem(STORAGE_KEY + "-filename");
   currentFileName="서로문화축제_Que_Sheet.xlsx";
   render(); showToast("원본으로 복원했습니다.");
@@ -224,6 +308,8 @@ function importExcel(file){
     });
     book=next;
     originalBook=clone(next);
+    editMeta={};
+    localStorage.removeItem(EDIT_META_KEY);
     currentFileName=file.name || "서로문화축제_Que_Sheet.xlsx";
     activeSheet=wb.SheetNames[0];
     selectedRow=null;
@@ -253,9 +339,21 @@ async function boot(){
   if(!res.ok) throw new Error("data.json load failed");
   originalBook=await res.json();
   book=loadSaved() || clone(originalBook);
+  editMeta=loadEditMeta();
   currentFileName=localStorage.getItem(STORAGE_KEY + "-filename") || "서로문화축제_Que_Sheet.xlsx";
   activeSheet=Object.keys(book)[0];
   render();
+
+  document.querySelectorAll(".editor-choice").forEach(btn=>{
+    btn.onclick=()=>chooseEditor(btn.dataset.name);
+  });
+  $("userBtn").onclick=openEditorModal;
+  currentEditor=localStorage.getItem(USER_KEY) || "";
+  if(currentEditor){
+    $("userBtn").textContent="👤 " + currentEditor;
+  }else{
+    openEditorModal();
+  }
 
   $("backBtn").onclick=()=>{ if(history.length>1) history.back(); else location.href="/"; };
   $("saveBtn").onclick=()=>{ save(); showToast("현재 내용을 저장했습니다."); };
