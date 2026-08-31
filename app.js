@@ -3,8 +3,7 @@ const EDIT_META_KEY = STORAGE_KEY + "-editors";
 const USER_KEY = STORAGE_KEY + "-current-user";
 const LOCAL_UPDATED_KEY = STORAGE_KEY + "-updated-at";
 const SHARED_API = "/api/state";
-const PRE_SHARED_BACKUP_KEY = STORAGE_KEY + "-pre-shared-backup";
-const PRE_SHARED_META_KEY = EDIT_META_KEY + "-pre-shared-backup";
+const SESSION_ID = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
 let originalBook = {};
 let book = {};
 let activeSheet = "";
@@ -70,7 +69,7 @@ function save(){
 
 async function loadShared(){
   try{
-    const res=await fetch(SHARED_API,{cache:"no-store"});
+    const res=await fetch(SHARED_API + "?t=" + Date.now(),{cache:"no-store"});
     if(!res.ok) return null;
     const data=await res.json();
     return data && data.book ? data : null;
@@ -78,6 +77,35 @@ async function loadShared(){
     console.warn("공용 저장 불러오기 실패",e);
     return null;
   }
+}
+
+async function sendPresence(active){
+  if(!currentEditor) return;
+  try{
+    await fetch(SHARED_API,{
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({sessionId:SESSION_ID,name:currentEditor,active})
+    });
+  }catch(e){}
+}
+
+async function refreshPresence(){
+  try{
+    const res=await fetch(SHARED_API + "?presence=1&t=" + Date.now(),{cache:"no-store"});
+    if(!res.ok) return;
+    const data=await res.json();
+    const others=(data.presence || []).filter(x=>x.sessionId!==SESSION_ID && x.name);
+    const el=$("editingStatus");
+    if(others.length){
+      const names=[...new Set(others.map(x=>x.name))];
+      el.textContent="🔴 수정중: " + names.join(", ");
+      el.classList.add("busy");
+    }else{
+      el.textContent=currentEditor ? "🟢 공용 원본 · " + currentEditor + " 작업중" : "🟢 공용 원본";
+      el.classList.remove("busy");
+    }
+  }catch(e){}
 }
 
 async function saveShared(message=true){
@@ -155,6 +183,8 @@ function shiftColMeta(sheet,start,delta,dropCol=null){
 function chooseEditor(name){
   currentEditor=name;
   localStorage.setItem(USER_KEY,name);
+  sendPresence(true);
+  refreshPresence();
   $("userBtn").textContent="👤 " + name;
   $("editorModal").classList.remove("show");
   $("editorModal").setAttribute("aria-hidden","true");
@@ -395,25 +425,18 @@ async function boot(){
   const res=await fetch("./data.json",{cache:"no-store"});
   if(!res.ok) throw new Error("data.json load failed");
   originalBook=await res.json();
-  const localBook=loadSaved();
-  const localMeta=loadEditMeta();
-
-  // 공용 저장 도입 이전의 기기 저장본은 별도 백업으로 보존
-  if(localBook && !localStorage.getItem(PRE_SHARED_BACKUP_KEY)){
-    localStorage.setItem(PRE_SHARED_BACKUP_KEY, JSON.stringify(localBook));
-    localStorage.setItem(PRE_SHARED_META_KEY, JSON.stringify(localMeta || {}));
-  }
-
   const shared=await loadShared();
 
+  // 서버 공용 원본만 사용. 기기 저장본은 원본으로 승격하지 않음.
   if(shared && shared.book){
     book=shared.book;
     editMeta=shared.editMeta || {};
     currentFileName=shared.currentFileName || "서로문화축제_Que_Sheet.xlsx";
   }else{
-    book=localBook || clone(originalBook);
-    editMeta=localMeta || {};
-    currentFileName=localStorage.getItem(STORAGE_KEY + "-filename") || "서로문화축제_Que_Sheet.xlsx";
+    book=clone(originalBook);
+    editMeta={};
+    currentFileName="서로문화축제_Que_Sheet.xlsx";
+    await saveShared(false);
   }
 
   if(book["연습"]) delete book["연습"];
@@ -424,7 +447,6 @@ async function boot(){
   save();
   render();
 
-  if(!shared) await saveShared(false);
 
   document.querySelectorAll(".editor-choice").forEach(btn=>{
     btn.onclick=()=>chooseEditor(btn.dataset.name);
@@ -448,35 +470,13 @@ async function boot(){
   currentEditor=localStorage.getItem(USER_KEY) || "";
   if(currentEditor){
     $("userBtn").textContent="👤 " + currentEditor;
+    await sendPresence(true);
   }else{
     openEditorModal();
   }
 
   $("backBtn").onclick=()=>{ if(history.length>1) history.back(); else location.href="/"; };
   $("saveBtn").onclick=()=>saveShared(true);
-  $("recoverBtn").onclick=async()=>{
-    let savedBook=null, savedMeta={};
-    try{
-      const backup=localStorage.getItem(PRE_SHARED_BACKUP_KEY);
-      if(backup){
-        savedBook=JSON.parse(backup);
-        savedMeta=JSON.parse(localStorage.getItem(PRE_SHARED_META_KEY) || "{}");
-      }
-    }catch(e){}
-    if(!savedBook){
-      savedBook=loadSaved();
-      savedMeta=loadEditMeta();
-    }
-    if(!savedBook){ showToast("이 기기에 저장된 내용이 없습니다."); return; }
-    if(!confirm("이 기기에 남아 있던 저장본으로 공용 내용을 덮어쓸까요?")) return;
-    book=savedBook;
-    editMeta=savedMeta || {};
-    if(book["연습"]) delete book["연습"];
-    activeSheet=Object.keys(book)[0];
-    render();
-    await saveShared(false);
-    showToast("이 기기 저장본을 공용으로 복구했습니다.");
-  };
   $("addRowBtn").onclick=addRow;
   $("addColBtn").onclick=addCol;
   $("deleteRowBtn").onclick=deleteRow;
@@ -484,6 +484,10 @@ async function boot(){
   $("resetBtn").onclick=resetBook;
   $("exportBtn").onclick=exportExcel;
   $("fileInput").onchange=(e)=>{ if(e.target.files[0]) importExcel(e.target.files[0]); };
+  refreshPresence();
+  setInterval(refreshPresence,5000);
+  setInterval(()=>sendPresence(true),15000);
+  window.addEventListener("pagehide",()=>{ sendPresence(false); });
 }
 
 boot().catch(err=>{
