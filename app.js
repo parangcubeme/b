@@ -3,6 +3,8 @@ const EDIT_META_KEY = STORAGE_KEY + "-editors";
 const USER_KEY = STORAGE_KEY + "-current-user";
 const LOCAL_UPDATED_KEY = STORAGE_KEY + "-updated-at";
 const SHARED_API = "/api/state";
+const PRE_SHARED_BACKUP_KEY = STORAGE_KEY + "-pre-shared-backup";
+const PRE_SHARED_META_KEY = EDIT_META_KEY + "-pre-shared-backup";
 let originalBook = {};
 let book = {};
 let activeSheet = "";
@@ -395,6 +397,13 @@ async function boot(){
   originalBook=await res.json();
   const localBook=loadSaved();
   const localMeta=loadEditMeta();
+
+  // 공용 저장 도입 이전의 기기 저장본은 별도 백업으로 보존
+  if(localBook && !localStorage.getItem(PRE_SHARED_BACKUP_KEY)){
+    localStorage.setItem(PRE_SHARED_BACKUP_KEY, JSON.stringify(localBook));
+    localStorage.setItem(PRE_SHARED_META_KEY, JSON.stringify(localMeta || {}));
+  }
+
   const shared=await loadShared();
 
   if(shared && shared.book){
@@ -446,10 +455,20 @@ async function boot(){
   $("backBtn").onclick=()=>{ if(history.length>1) history.back(); else location.href="/"; };
   $("saveBtn").onclick=()=>saveShared(true);
   $("recoverBtn").onclick=async()=>{
-    const savedBook=loadSaved();
-    const savedMeta=loadEditMeta();
+    let savedBook=null, savedMeta={};
+    try{
+      const backup=localStorage.getItem(PRE_SHARED_BACKUP_KEY);
+      if(backup){
+        savedBook=JSON.parse(backup);
+        savedMeta=JSON.parse(localStorage.getItem(PRE_SHARED_META_KEY) || "{}");
+      }
+    }catch(e){}
+    if(!savedBook){
+      savedBook=loadSaved();
+      savedMeta=loadEditMeta();
+    }
     if(!savedBook){ showToast("이 기기에 저장된 내용이 없습니다."); return; }
-    if(!confirm("이 기기에 남아 있는 저장본으로 공용 내용을 덮어쓸까요?")) return;
+    if(!confirm("이 기기에 남아 있던 저장본으로 공용 내용을 덮어쓸까요?")) return;
     book=savedBook;
     editMeta=savedMeta || {};
     if(book["연습"]) delete book["연습"];
