@@ -1,6 +1,8 @@
 const STORAGE_KEY = "soro-culture-cuesheet-v1";
 const EDIT_META_KEY = STORAGE_KEY + "-editors";
 const USER_KEY = STORAGE_KEY + "-current-user";
+const LOCAL_UPDATED_KEY = STORAGE_KEY + "-updated-at";
+const SHARED_API = "/api/state";
 let originalBook = {};
 let book = {};
 let activeSheet = "";
@@ -61,6 +63,50 @@ function normalizeRows(rows){
 function save(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(book));
   localStorage.setItem(EDIT_META_KEY, JSON.stringify(editMeta));
+  localStorage.setItem(LOCAL_UPDATED_KEY, String(Date.now()));
+}
+
+async function loadShared(){
+  try{
+    const res=await fetch(SHARED_API,{cache:"no-store"});
+    if(!res.ok) return null;
+    const data=await res.json();
+    return data && data.book ? data : null;
+  }catch(e){
+    console.warn("공용 저장 불러오기 실패",e);
+    return null;
+  }
+}
+
+async function saveShared(message=true){
+  save();
+  const payload={
+    book,
+    editMeta,
+    currentFileName,
+    updatedAt:Date.now(),
+    updatedBy:currentEditor || ""
+  };
+  try{
+    const res=await fetch(SHARED_API,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error("shared save failed");
+    if(message) showToast("공용으로 저장했습니다.");
+    return true;
+  }catch(e){
+    console.error(e);
+    showToast("공용 저장 실패 - 이 기기에는 보관했습니다.");
+    return false;
+  }
+}
+
+let sharedSaveTimer=null;
+function scheduleSharedSave(){
+  clearTimeout(sharedSaveTimer);
+  sharedSaveTimer=setTimeout(()=>saveShared(false),700);
 }
 
 function loadEditMeta(){
@@ -239,6 +285,7 @@ function render(){
           td.title="수정: " + currentEditor;
         }
         save();
+        scheduleSharedSave();
       });
       td.addEventListener("keydown",(e)=>{
         if(e.key==="Enter" && !e.shiftKey){
@@ -263,12 +310,12 @@ function addRow(){
   shiftRowMeta(activeSheet,at,1);
   rows.splice(at,0,Array(width).fill(""));
   selectedRow=at;
-  save(); render(); showToast("행을 추가했습니다.");
+  save(); render(); scheduleSharedSave(); showToast("행을 추가했습니다.");
 }
 
 function addCol(){
   book[activeSheet].forEach(r=>r.push(""));
-  save(); render(); showToast("열을 추가했습니다.");
+  save(); render(); scheduleSharedSave(); showToast("열을 추가했습니다.");
 }
 
 function deleteCol(){
@@ -280,7 +327,7 @@ function deleteCol(){
   rows.forEach(r=>r.splice(selectedCol,1));
   shiftColMeta(activeSheet,deletingCol+1,-1,deletingCol);
   selectedCol=null;
-  save(); render(); showToast("열을 삭제했습니다.");
+  save(); render(); scheduleSharedSave(); showToast("열을 삭제했습니다.");
 }
 
 function deleteRow(){
@@ -290,7 +337,7 @@ function deleteRow(){
   book[activeSheet].splice(selectedRow,1);
   shiftRowMeta(activeSheet,deletingRow+1,-1,deletingRow);
   selectedRow=null;
-  save(); render(); showToast("행을 삭제했습니다.");
+  save(); render(); scheduleSharedSave(); showToast("행을 삭제했습니다.");
 }
 
 function resetBook(){
@@ -322,7 +369,7 @@ function importExcel(file){
     activeSheet=wb.SheetNames[0];
     selectedRow=null;
     localStorage.setItem(STORAGE_KEY + "-filename", currentFileName);
-    save(); render(); showToast("업로드한 엑셀로 현재 화면을 덮어썼습니다.");
+    save(); render(); saveShared(false); showToast("업로드한 엑셀로 현재 화면과 공용 파일을 덮어썼습니다.");
   };
   reader.readAsArrayBuffer(file);
 }
@@ -346,16 +393,29 @@ async function boot(){
   const res=await fetch("./data.json",{cache:"no-store"});
   if(!res.ok) throw new Error("data.json load failed");
   originalBook=await res.json();
-  book=loadSaved() || clone(originalBook);
-  // 연습 시트는 폐기: 기존 브라우저 저장본에 남아 있어도 제거
+  const localBook=loadSaved();
+  const localMeta=loadEditMeta();
+  const shared=await loadShared();
+
+  if(shared && shared.book){
+    book=shared.book;
+    editMeta=shared.editMeta || {};
+    currentFileName=shared.currentFileName || "서로문화축제_Que_Sheet.xlsx";
+  }else{
+    book=localBook || clone(originalBook);
+    editMeta=localMeta || {};
+    currentFileName=localStorage.getItem(STORAGE_KEY + "-filename") || "서로문화축제_Que_Sheet.xlsx";
+  }
+
   if(book["연습"]) delete book["연습"];
   if(originalBook["연습"]) delete originalBook["연습"];
-  editMeta=loadEditMeta();
   Object.keys(editMeta).forEach(k=>{ if(k.startsWith("연습|")) delete editMeta[k]; });
-  save();
-  currentFileName=localStorage.getItem(STORAGE_KEY + "-filename") || "서로문화축제_Que_Sheet.xlsx";
+
   activeSheet=Object.keys(book)[0];
+  save();
   render();
+
+  if(!shared) await saveShared(false);
 
   document.querySelectorAll(".editor-choice").forEach(btn=>{
     btn.onclick=()=>chooseEditor(btn.dataset.name);
@@ -384,7 +444,20 @@ async function boot(){
   }
 
   $("backBtn").onclick=()=>{ if(history.length>1) history.back(); else location.href="/"; };
-  $("saveBtn").onclick=()=>{ save(); showToast("현재 내용을 저장했습니다."); };
+  $("saveBtn").onclick=()=>saveShared(true);
+  $("recoverBtn").onclick=async()=>{
+    const savedBook=loadSaved();
+    const savedMeta=loadEditMeta();
+    if(!savedBook){ showToast("이 기기에 저장된 내용이 없습니다."); return; }
+    if(!confirm("이 기기에 남아 있는 저장본으로 공용 내용을 덮어쓸까요?")) return;
+    book=savedBook;
+    editMeta=savedMeta || {};
+    if(book["연습"]) delete book["연습"];
+    activeSheet=Object.keys(book)[0];
+    render();
+    await saveShared(false);
+    showToast("이 기기 저장본을 공용으로 복구했습니다.");
+  };
   $("addRowBtn").onclick=addRow;
   $("addColBtn").onclick=addCol;
   $("deleteRowBtn").onclick=deleteRow;
