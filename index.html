@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>서로문화축제 Que Sheet</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>서로문화축제 Que Sheet</h1>
+      <p>엑셀처럼 보고 · 수정하고 · 행/열 추가</p>
+    </div>
+    <div class="header-actions">
+      <label class="btn secondary">엑셀 불러오기<input id="fileInput" type="file" accept=".xlsx,.xls" hidden></label>
+      <button id="exportBtn" class="btn">엑셀로 저장</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <div id="sheetTabs" class="sheet-tabs"></div>
+      <div class="toolbar-actions">
+        <button id="addRowBtn" class="tool-btn">+ 행</button>
+        <button id="addColBtn" class="tool-btn">+ 열</button>
+        <button id="deleteRowBtn" class="tool-btn danger">행 삭제</button>
+        <button id="resetBtn" class="tool-btn ghost">원본 복원</button>
+      </div>
+    </section>
+
+    <section class="sheet-shell">
+      <div class="orientation-note">📱 모바일에서는 가로로 돌리면 더 편하게 볼 수 있습니다.</div>
+      <div id="tableWrap" class="table-wrap">
+        <table id="sheetTable" aria-label="서로문화축제 큐시트"></table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
