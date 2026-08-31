@@ -39,3 +39,39 @@ async function login(){
 }
 $("loginBtn").onclick=login;
 $("adminPw").addEventListener("keydown",e=>{if(e.key==="Enter")login();});
+
+async function uploadCueSheet(){
+  const file=$("cueUpload").files[0];
+  if(!file){$("uploadMsg").textContent="엑셀 파일을 선택하세요.";return;}
+  if(!confirm("현재 공용 큐시트를 업로드한 파일로 덮어쓸까요? 기존 공용본은 백업됩니다.")) return;
+  $("uploadMsg").textContent="업로드 중...";
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array",cellDates:false});
+    const book={};
+    wb.SheetNames.forEach(name=>{
+      if(name==="연습") return;
+      book[name]=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:"",raw:true});
+    });
+    if(!Object.keys(book).length) throw new Error("sheet missing");
+    const res=await fetch("/api/admin",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        action:"upload",
+        id:$("adminId").value.trim(),
+        pw:$("adminPw").value,
+        book,
+        currentFileName:file.name
+      })
+    });
+    const data=await res.json();
+    if(!res.ok||!data.ok) throw new Error(data.error||"upload failed");
+    $("uploadMsg").style.color="#047857";
+    $("uploadMsg").textContent="공용 큐시트를 새 파일로 덮어썼습니다.";
+    $("cueUpload").value="";
+  }catch(e){
+    $("uploadMsg").style.color="#b91c1c";
+    $("uploadMsg").textContent="업로드하지 못했습니다.";
+  }
+}
+$("uploadBtn").onclick=uploadCueSheet;
