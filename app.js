@@ -123,7 +123,7 @@ async function saveShared(message=true){
     const res=await fetch(SHARED_API,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({...payload,makeBackup:message})
+      body:JSON.stringify({...payload,makeBackup:true})
     });
     if(!res.ok) throw new Error("shared save failed");
     if(message) showToast("공용으로 저장했습니다.");
