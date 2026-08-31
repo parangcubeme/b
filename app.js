@@ -99,7 +99,8 @@ async function refreshPresence(){
     const el=$("editingStatus");
     if(others.length){
       const names=[...new Set(others.map(x=>x.name))];
-      el.textContent=names.join(", ") + " 수정중";
+      const first=others.slice().sort((a,b)=>Number(a.startedAt||a.ts||0)-Number(b.startedAt||b.ts||0))[0];
+      el.textContent=(first?.name || names[0]) + "님이 먼저 시작했습니다. 두 명 이상 수정하면 데이터가 유실될 수 있습니다. 처음 수정한 사람이 끝나면 그다음에 수정해 주세요.";
       el.classList.add("busy");
     }else{
       el.textContent=currentEditor ? currentEditor + " 수정중" : "공용 원본";
