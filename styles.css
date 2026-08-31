@@ -91,3 +91,5 @@ td.cell[data-editor]::before{
   .editor-buttons{grid-template-columns:1fr}
 }
 
+
+.recover-btn{background:#b45309!important}
