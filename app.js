@@ -24,7 +24,7 @@ function colName(n){
   return s;
 }
 
-function excelTime(v){
+function displayValue(v, c){
   if(typeof v !== "number") return v ?? "";
   if(v > 40000){
     const base = new Date(Date.UTC(1899,11,30));
@@ -33,7 +33,7 @@ function excelTime(v){
     const hh=String(d.getUTCHours()).padStart(2,"0"), mm=String(d.getUTCMinutes()).padStart(2,"0");
     return `${y}-${m}-${day} ${hh}:${mm}`;
   }
-  if(v >= 0 && v < 1){
+  if((c===2 || c===4) && v >= 0 && v < 1){
     const mins = Math.round(v * 24 * 60);
     return `${String(Math.floor(mins/60)%24).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;
   }
@@ -49,9 +49,7 @@ function normalizeRows(rows){
   });
 }
 
-function save(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(book));
-}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(book)); }
 
 function loadSaved(){
   try{
@@ -125,7 +123,7 @@ function render(){
       td.spellcheck=false;
       td.dataset.r=r;
       td.dataset.c=c;
-      td.textContent=excelTime(row[c]);
+      td.textContent=displayValue(row[c], c);
       td.addEventListener("focus",()=>{ selectedRow=r; });
       td.addEventListener("blur",()=>{
         book[activeSheet][r][c]=td.innerText.replace(/\r/g,"");
@@ -138,9 +136,7 @@ function render(){
           const next=table.querySelector(`td[data-r="${r+1}"][data-c="${c}"]`);
           if(next) next.focus();
         }
-        if(e.key==="Tab"){
-          setTimeout(()=>save(),0);
-        }
+        if(e.key==="Tab") setTimeout(()=>save(),0);
       });
       tr.appendChild(td);
     }
@@ -155,15 +151,12 @@ function addRow(){
   const at=selectedRow===null?rows.length:selectedRow+1;
   rows.splice(at,0,Array(width).fill(""));
   selectedRow=at;
-  save(); render();
-  showToast("행을 추가했습니다.");
+  save(); render(); showToast("행을 추가했습니다.");
 }
 
 function addCol(){
-  const rows=book[activeSheet];
-  rows.forEach(r=>r.push(""));
-  save(); render();
-  showToast("열을 추가했습니다.");
+  book[activeSheet].forEach(r=>r.push(""));
+  save(); render(); showToast("열을 추가했습니다.");
 }
 
 function deleteRow(){
@@ -171,8 +164,7 @@ function deleteRow(){
   if(book[activeSheet].length<=1) return;
   book[activeSheet].splice(selectedRow,1);
   selectedRow=null;
-  save(); render();
-  showToast("행을 삭제했습니다.");
+  save(); render(); showToast("행을 삭제했습니다.");
 }
 
 function resetBook(){
@@ -181,8 +173,7 @@ function resetBook(){
   activeSheet=Object.keys(book)[0];
   selectedRow=null;
   localStorage.removeItem(STORAGE_KEY);
-  render();
-  showToast("원본으로 복원했습니다.");
+  render(); showToast("원본으로 복원했습니다.");
 }
 
 function importExcel(file){
@@ -196,8 +187,7 @@ function importExcel(file){
     book=next;
     activeSheet=wb.SheetNames[0];
     selectedRow=null;
-    save(); render();
-    showToast("엑셀을 불러왔습니다.");
+    save(); render(); showToast("엑셀을 불러왔습니다.");
   };
   reader.readAsArrayBuffer(file);
 }
@@ -214,6 +204,7 @@ function exportExcel(){
 
 async function boot(){
   const res=await fetch("./data.json",{cache:"no-store"});
+  if(!res.ok) throw new Error("data.json load failed");
   originalBook=await res.json();
   book=loadSaved() || clone(originalBook);
   activeSheet=Object.keys(book)[0];
