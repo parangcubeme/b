@@ -347,7 +347,12 @@ async function boot(){
   if(!res.ok) throw new Error("data.json load failed");
   originalBook=await res.json();
   book=loadSaved() || clone(originalBook);
+  // 연습 시트는 폐기: 기존 브라우저 저장본에 남아 있어도 제거
+  if(book["연습"]) delete book["연습"];
+  if(originalBook["연습"]) delete originalBook["연습"];
   editMeta=loadEditMeta();
+  Object.keys(editMeta).forEach(k=>{ if(k.startsWith("연습|")) delete editMeta[k]; });
+  save();
   currentFileName=localStorage.getItem(STORAGE_KEY + "-filename") || "서로문화축제_Que_Sheet.xlsx";
   activeSheet=Object.keys(book)[0];
   render();
