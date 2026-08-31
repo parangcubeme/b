@@ -496,7 +496,6 @@ async function boot(){
   $("addColBtn").onclick=addCol;
   $("deleteRowBtn").onclick=deleteRow;
   $("deleteColBtn").onclick=deleteCol;
-  $("resetBtn").onclick=resetBook;
   $("exportBtn").onclick=exportExcel;
   refreshPresence();
   setInterval(refreshPresence,5000);
