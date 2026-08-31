@@ -3,6 +3,7 @@ let originalBook = {};
 let book = {};
 let activeSheet = "";
 let selectedRow = null;
+let selectedCol = null;
 let currentFileName = "서로문화축제_Que_Sheet.xlsx";
 
 const $ = (id) => document.getElementById(id);
@@ -99,6 +100,8 @@ function render(){
   for(let c=0;c<cols;c++){
     const th=document.createElement("th");
     th.textContent=colName(c);
+    th.onclick=()=>{ selectedCol=c; render(); };
+    if(selectedCol===c) th.classList.add("selected-col");
     hr.appendChild(th);
   }
   thead.appendChild(hr);
@@ -158,6 +161,16 @@ function addRow(){
 function addCol(){
   book[activeSheet].forEach(r=>r.push(""));
   save(); render(); showToast("열을 추가했습니다.");
+}
+
+function deleteCol(){
+  if(selectedCol===null){ showToast("위쪽 열 문자(A, B, C...)를 먼저 선택하세요."); return; }
+  const rows=book[activeSheet];
+  const width=Math.max(1,...rows.map(r=>r.length));
+  if(width<=1){ showToast("마지막 열은 삭제할 수 없습니다."); return; }
+  rows.forEach(r=>r.splice(selectedCol,1));
+  selectedCol=null;
+  save(); render(); showToast("열을 삭제했습니다.");
 }
 
 function deleteRow(){
@@ -224,6 +237,7 @@ async function boot(){
   $("addRowBtn").onclick=addRow;
   $("addColBtn").onclick=addCol;
   $("deleteRowBtn").onclick=deleteRow;
+  $("deleteColBtn").onclick=deleteCol;
   $("resetBtn").onclick=resetBook;
   $("exportBtn").onclick=exportExcel;
   $("fileInput").onchange=(e)=>{ if(e.target.files[0]) importExcel(e.target.files[0]); };
