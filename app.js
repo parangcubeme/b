@@ -2,7 +2,8 @@ const STORAGE_KEY = "soro-culture-cuesheet-v1";
 let originalBook = {};
 let book = {};
 let activeSheet = "";
-let selectedRow = null;\nlet currentFileName = "서로문화축제_Que_Sheet.xlsx";
+let selectedRow = null;
+let currentFileName = "서로문화축제_Que_Sheet.xlsx";
 
 const $ = (id) => document.getElementById(id);
 const table = $("sheetTable");
