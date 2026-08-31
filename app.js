@@ -219,6 +219,8 @@ async function boot(){
   activeSheet=Object.keys(book)[0];
   render();
 
+  $("backBtn").onclick=()=>{ if(history.length>1) history.back(); else location.href="/"; };
+  $("saveBtn").onclick=()=>{ save(); showToast("현재 내용을 저장했습니다."); };
   $("addRowBtn").onclick=addRow;
   $("addColBtn").onclick=addCol;
   $("deleteRowBtn").onclick=deleteRow;
