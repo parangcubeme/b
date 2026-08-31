@@ -75,3 +75,26 @@ async function uploadCueSheet(){
   }
 }
 $("uploadBtn").onclick=uploadCueSheet;
+
+async function resetOriginal(){
+  if(!confirm("현재 공용 큐시트를 기본 원본으로 복원할까요? 현재 공용본은 먼저 백업됩니다.")) return;
+  $("resetMsg").textContent="복원 중...";
+  try{
+    const src=await fetch("/data.json?t="+Date.now(),{cache:"no-store"});
+    if(!src.ok) throw new Error("original load failed");
+    const book=await src.json();
+    if(book["연습"]) delete book["연습"];
+    const res=await fetch("/api/admin",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"reset",id:$("adminId").value.trim(),pw:$("adminPw").value,book})
+    });
+    const data=await res.json();
+    if(!res.ok||!data.ok) throw new Error(data.error||"reset failed");
+    $("resetMsg").style.color="#047857";
+    $("resetMsg").textContent="공용 큐시트를 원본으로 복원했습니다.";
+  }catch(e){
+    $("resetMsg").style.color="#b91c1c";
+    $("resetMsg").textContent="원본 복원에 실패했습니다.";
+  }
+}
+$("resetOriginalBtn").onclick=resetOriginal;
