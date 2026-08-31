@@ -498,7 +498,6 @@ async function boot(){
   $("deleteColBtn").onclick=deleteCol;
   $("resetBtn").onclick=resetBook;
   $("exportBtn").onclick=exportExcel;
-  $("fileInput").onchange=(e)=>{ if(e.target.files[0]) importExcel(e.target.files[0]); };
   refreshPresence();
   setInterval(refreshPresence,5000);
   setInterval(()=>sendPresence(true),15000);
