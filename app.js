@@ -356,6 +356,20 @@ async function boot(){
     btn.onclick=()=>chooseEditor(btn.dataset.name);
   });
   $("userBtn").onclick=openEditorModal;
+  $("landscapeBtn").onclick=async()=>{
+    try{
+      if(screen.orientation && screen.orientation.lock){
+        await screen.orientation.lock("landscape");
+        showToast("가로 화면으로 전환했습니다.");
+      }else{
+        document.body.classList.toggle("force-landscape");
+        showToast("가로보기 모드를 전환했습니다.");
+      }
+    }catch(e){
+      document.body.classList.toggle("force-landscape");
+      showToast("브라우저 제한으로 화면을 넓게 표시합니다.");
+    }
+  };
   currentEditor=localStorage.getItem(USER_KEY) || "";
   if(currentEditor){
     $("userBtn").textContent="👤 " + currentEditor;
