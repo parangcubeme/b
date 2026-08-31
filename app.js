@@ -3,6 +3,7 @@ const EDIT_META_KEY = STORAGE_KEY + "-editors";
 const USER_KEY = STORAGE_KEY + "-current-user";
 const LOCAL_UPDATED_KEY = STORAGE_KEY + "-updated-at";
 const SHARED_API = "/api/state";
+const ADMIN_API = "/api/admin";
 const SESSION_ID = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
 let originalBook = {};
 let book = {};
@@ -122,7 +123,7 @@ async function saveShared(message=true){
     const res=await fetch(SHARED_API,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload)
+      body:JSON.stringify({...payload,makeBackup:message})
     });
     if(!res.ok) throw new Error("shared save failed");
     if(message) showToast("공용으로 저장했습니다.");
@@ -181,9 +182,20 @@ function shiftColMeta(sheet,start,delta,dropCol=null){
   editMeta=next;
 }
 
+async function logVisit(name){
+  try{
+    await fetch(ADMIN_API,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"visit",name,sessionId:SESSION_ID})
+    });
+  }catch(e){}
+}
+
 function chooseEditor(name){
   currentEditor=name;
   localStorage.setItem(USER_KEY,name);
+  logVisit(name);
   sendPresence(true);
   refreshPresence();
   $("userBtn").textContent="👤 " + name;
@@ -453,6 +465,7 @@ async function boot(){
     btn.onclick=()=>chooseEditor(btn.dataset.name);
   });
   $("userBtn").onclick=openEditorModal;
+  $("adminBtn").onclick=()=>{ location.href="/adm"; };
   $("landscapeBtn").onclick=async()=>{
     try{
       if(!document.fullscreenElement && document.documentElement.requestFullscreen){
@@ -472,6 +485,7 @@ async function boot(){
   if(currentEditor){
     $("userBtn").textContent="👤 " + currentEditor;
     await sendPresence(true);
+    logVisit(currentEditor);
   }else{
     openEditorModal();
   }
