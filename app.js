@@ -154,6 +154,13 @@ function isCellSelected(r,c){
   return r>=r1 && r<=r2 && c>=c1 && c<=c2;
 }
 
+function refreshRangeSelection(){
+  table.querySelectorAll("td.cell").forEach(td=>{
+    const r=Number(td.dataset.r), c=Number(td.dataset.c);
+    td.classList.toggle("range-selected", isCellSelected(r,c));
+  });
+}
+
 function render(){
   if(!book[activeSheet]) return;
   renderTabs();
@@ -209,13 +216,14 @@ function render(){
       td.addEventListener("mousedown",(e)=>{
         if(e.button!==0) return;
         isDragging=true;
-        dragStart={r,c}; dragEnd={r,c};
-        render();
+        dragStart={r,c};
+        dragEnd={r,c};
+        refreshRangeSelection();
       });
       td.addEventListener("mouseenter",()=>{
         if(!isDragging) return;
         dragEnd={r,c};
-        render();
+        refreshRangeSelection();
       });
       td.addEventListener("focus",()=>{
         selectedRow=r;
