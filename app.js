@@ -99,10 +99,10 @@ async function refreshPresence(){
     const el=$("editingStatus");
     if(others.length){
       const names=[...new Set(others.map(x=>x.name))];
-      el.textContent="🔴 수정중: " + names.join(", ");
+      el.textContent=names.join(", ") + " 수정중";
       el.classList.add("busy");
     }else{
-      el.textContent=currentEditor ? "🟢 공용 원본 · " + currentEditor + " 작업중" : "🟢 공용 원본";
+      el.textContent=currentEditor ? currentEditor + " 수정중" : "공용 원본";
       el.classList.remove("busy");
     }
   }catch(e){}
