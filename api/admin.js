@@ -61,6 +61,22 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true});
     }
 
+    if(body.action==="reset"){
+      if(!adminOk(body.id,body.pw)) return res.status(401).json({ok:false,error:"unauthorized"});
+      if(!body.book || typeof body.book!=="object") return res.status(400).json({ok:false,error:"invalid book"});
+      const now=Date.now();
+      const current=await readJson(STORE_URL,{});
+      if(current && current.book){
+        let backups=await readJson(BACKUPS_URL,[]);
+        if(!Array.isArray(backups)) backups=[];
+        backups.unshift({id:String(now),createdAt:now,updatedBy:current.updatedBy||"관리자 복원 전",fileName:(current.currentFileName||"서로문화축제_Que_Sheet.xlsx").replace(/\.xlsx?$/i,""),snapshot:current});
+        await writeJson(BACKUPS_URL,backups.slice(0,100));
+      }
+      const next={book:body.book,editMeta:{},currentFileName:"서로문화축제_Que_Sheet.xlsx",updatedAt:now,updatedBy:"관리자 원본복원"};
+      const ok=await writeJson(STORE_URL,next);
+      return res.status(ok?200:502).json({ok});
+    }
+
     if(body.action==="upload"){
       if(!adminOk(body.id,body.pw)) return res.status(401).json({ok:false,error:"unauthorized"});
       if(!body.book || typeof body.book!=="object") return res.status(400).json({ok:false,error:"invalid book"});
