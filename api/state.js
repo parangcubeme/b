@@ -1,5 +1,6 @@
 const STORE_URL="https://mantledb.sh/v2/soro-culture-260906-7f3c9a/cuesheet/shared-state";
 const PRESENCE_URL="https://mantledb.sh/v2/soro-culture-260906-7f3c9a/cuesheet/presence";
+const BACKUPS_URL="https://mantledb.sh/v2/soro-culture-260906-7f3c9a/cuesheet/backups";
 
 export default async function handler(req,res){
   try{
@@ -38,10 +39,39 @@ export default async function handler(req,res){
 
     if(req.method==="POST"){
       const body=typeof req.body==="string" ? JSON.parse(req.body||"{}") : (req.body||{});
+
+      if(body.makeBackup){
+        try{
+          const currentRes=await fetch(STORE_URL,{method:"GET",headers:{"Accept":"application/json"}});
+          if(currentRes.ok){
+            const currentText=await currentRes.text();
+            let current={};
+            try{ current=currentText ? JSON.parse(currentText) : {}; }catch(e){}
+            if(current && current.book){
+              const listRes=await fetch(BACKUPS_URL,{method:"GET",headers:{"Accept":"application/json"}});
+              let list=[];
+              if(listRes.ok){ try{ list=JSON.parse(await listRes.text()) || []; }catch(e){} }
+              if(!Array.isArray(list)) list=[];
+              list.unshift({
+                id:String(Date.now()),
+                createdAt:Date.now(),
+                updatedBy:current.updatedBy || "",
+                fileName:(current.currentFileName || "서로문화축제_Que_Sheet.xlsx").replace(/\.xlsx?$/i,""),
+                snapshot:current
+              });
+              list=list.slice(0,100);
+              await fetch(BACKUPS_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(list)});
+            }
+          }
+        }catch(e){}
+      }
+
+      const cleanBody={...body};
+      delete cleanBody.makeBackup;
       const r=await fetch(STORE_URL,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(body)
+        body:JSON.stringify(cleanBody)
       });
       if(!r.ok){
         const t=await r.text();
