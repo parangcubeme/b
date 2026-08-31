@@ -2,7 +2,7 @@ const STORAGE_KEY = "soro-culture-cuesheet-v1";
 let originalBook = {};
 let book = {};
 let activeSheet = "";
-let selectedRow = null;
+let selectedRow = null;\nlet currentFileName = "서로문화축제_Que_Sheet.xlsx";
 
 const $ = (id) => document.getElementById(id);
 const table = $("sheetTable");
@@ -173,6 +173,8 @@ function resetBook(){
   activeSheet=Object.keys(book)[0];
   selectedRow=null;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY + "-filename");
+  currentFileName="서로문화축제_Que_Sheet.xlsx";
   render(); showToast("원본으로 복원했습니다.");
 }
 
@@ -185,9 +187,12 @@ function importExcel(file){
       next[name]=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:"",raw:true});
     });
     book=next;
+    originalBook=clone(next);
+    currentFileName=file.name || "서로문화축제_Que_Sheet.xlsx";
     activeSheet=wb.SheetNames[0];
     selectedRow=null;
-    save(); render(); showToast("엑셀을 불러왔습니다.");
+    localStorage.setItem(STORAGE_KEY + "-filename", currentFileName);
+    save(); render(); showToast("업로드한 엑셀로 현재 화면을 덮어썼습니다.");
   };
   reader.readAsArrayBuffer(file);
 }
@@ -199,7 +204,9 @@ function exportExcel(){
     ws["!cols"]=rows[0]?.map((_,c)=>({wch: c>=6 ? 24 : 12})) || [];
     XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));
   });
-  XLSX.writeFile(wb,"서로문화축제_Que_Sheet_편집본.xlsx");
+  const safeName = (currentFileName || "서로문화축제_Que_Sheet.xlsx").replace(/\.xlsx?$/i,"");
+  XLSX.writeFile(wb, safeName + "_현재파일.xlsx");
+  showToast("현재 화면의 파일을 다운로드했습니다.");
 }
 
 async function boot(){
@@ -207,6 +214,7 @@ async function boot(){
   if(!res.ok) throw new Error("data.json load failed");
   originalBook=await res.json();
   book=loadSaved() || clone(originalBook);
+  currentFileName=localStorage.getItem(STORAGE_KEY + "-filename") || "서로문화축제_Que_Sheet.xlsx";
   activeSheet=Object.keys(book)[0];
   render();
 
